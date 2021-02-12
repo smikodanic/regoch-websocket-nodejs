@@ -1,0 +1,39 @@
+{
+  "name": "regoch-websocket-nodejs",
+  "version": "1.0.0",
+  "title": "Regoch Websocket Client for nodeJS",
+  "description": "Websocket Client for nodeJS which works best with the Regoch Websocket Server.",
+  "author": "Sasa Mikodanic <smikodanic@gmail.com>",
+  "homepage": "http://www.regoch.org/websocket-client-nodejs",
+  "license": "AGPL-3.0",
+  "keywords": [
+    "websocket",
+    "client",
+    "nodejs",
+    "socket",
+    "ws",
+    "RFC 6455",
+    "real-time",
+    "realtime",
+    "tcp",
+    "websocket client",
+    "regoch"
+  ],
+  "main": "client/index.js",
+  "scripts": {
+    "inst": "rm -rf node_modules && npm install",
+    "dev": "nodemon examples/001test.js"
+  },
+  "dependencies": {},
+  "directories": {
+    "example": "examples",
+    "src": "src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smikodanic/regoch-websocket-nodejs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/smikodanic/regoch-websocket-nodejs/issues"
+  }
+}
