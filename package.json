@@ -22,7 +22,7 @@
   "main": "client/index.js",
   "scripts": {
     "inst": "rm -rf node_modules && npm install",
-    "dev": "nodemon examples/001test.js"
+    "dev": "nodemon examples/000dev.js"
   },
   "dependencies": {},
   "directories": {

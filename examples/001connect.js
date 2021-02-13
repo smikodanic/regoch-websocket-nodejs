@@ -1,7 +1,7 @@
-const ClientNodejs = require('../client');
+const Client13jsonRWS = require('../client/Client13jsonRWS');
 
 
-class TestCN extends ClientNodejs {
+class TestClient extends Client13jsonRWS {
 
   constructor(wcOpts) {
     super(wcOpts);
@@ -18,5 +18,5 @@ const wcOpts = {
   timeout: 3*1000, // 3 secs
   debug: true
 };
-const testCB = new TestCN(wcOpts);
+const testCB = new TestClient(wcOpts);
 testCB.connect();
