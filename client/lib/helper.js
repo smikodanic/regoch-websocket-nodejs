@@ -46,6 +46,17 @@ class Helper {
   }
 
 
+  /**
+   * Print all buffer values as string.
+   * For example: 81 7e 00 8b 7b 22 69 64 22 3a 32 31 30 32 31 34 31 30
+   * @param {Buffer} buff
+   * @returns {void}
+   */
+  printBuffer(buff) {
+    console.log(buff.toString('hex').match(/../g).join(' '));
+  }
+
+
 
 }
 

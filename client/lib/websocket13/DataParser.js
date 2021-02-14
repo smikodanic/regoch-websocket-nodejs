@@ -107,7 +107,7 @@ class DataParser {
       console.log();
       console.log('payload_buff:', payload_buff.length, payload_buff);
       if (mask === 1) console.log('payload_buff_unmasked:', payload_buff_unmasked.length, payload_buff_unmasked);
-      console.log('payload_str:', typeof payload_str, payload_str);
+      console.log('payload_str:', payload_str.length, payload_str);
       console.log('--------------------- DataParser.incoming END ------------------------\n\n');
     }
 
@@ -207,15 +207,49 @@ class DataParser {
       console.log('byte_2::', this.toBinStr(byte_2), this.toHexStr(byte_2));
       if (!!byte_34) console.log('byte_34::', this.toBinStr(byte_34, 2), this.toHexStr(byte_34, 2)); // msglen >= 126 && msglen <= 0xFFFF
       if (!!byte_3_10) console.log('byte_3_10::', this.toBinStr(byte_3_10, 8)); // msglen > 0xFFFF && msglen <= 0xFFFFFFFFFFFFFFFF
-      console.log('payload_buff::', msglen, payload_buff);
-      if (mask === 1) console.log('payload_buff_masked::', msglen, payload_buff_masked);
-      console.log('frame_buff::', frame_buff);
+      console.log('payload_buff::', payload_buff.length, payload_buff);
+      if (mask === 1) console.log('payload_buff_masked::', payload_buff_masked.length , payload_buff_masked);
+      console.log('frame_buff::', frame_buff.length, frame_buff);
       console.log('--------------------- DataParser.outgoing END ------------------------\n\n');
     }
 
     const msgBUF = frame_buff;
     return msgBUF;
 
+  }
+
+
+
+  /********************* CONTROL FRAMES ******************/
+  /*** https://tools.ietf.org/html/rfc6455#section-5.5 ***/
+  /**
+   * Send close frame contains (opcode: 0x8).
+   * @param {0|1} mask - mask 0 if message is sent from server to client or 1 in opposite direction
+   */
+  ctrlClose(mask) {
+    // 1.st byte
+    const fin = 1; // final message fragment
+    const rsv1 = 0;
+    const rsv2 = 0;
+    const rsv3 = 0;
+    const opcode = 0x8; // 0x8 is close frame (or 0b1000)
+    const byte_1 = (((((((fin << 1) | rsv1) << 1) | rsv2) << 1) | rsv3) << 4) | opcode;
+
+    // 2.nd byte
+    const plen_byte2 = 0;
+    const byte_2 = (mask << 7) | plen_byte2;
+
+    let frame_buff = Buffer.from([byte_1, byte_2]);
+
+    // 3, 4, 5 and 6 byte
+    if (mask === 1) {
+      const mask_keys = this.randomMaskingKeys();
+      const buff_3456 = Buffer.from(mask_keys);
+      frame_buff = Buffer.concat([frame_buff, buff_3456]);
+    }
+
+    const closeBUF = frame_buff;
+    return closeBUF;
   }
 
 

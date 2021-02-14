@@ -7,7 +7,8 @@ const http = require('http');
 const urlNode = require('url');
 const crypto = require('crypto');
 const package_json = require('../package.json');
-const { jsonRWS, DataParser, handshake, helper, StringExt } = require('./lib');
+const { jsonRWS, handshake, helper, StringExt } = require('./lib');
+const DataParser = require('../../regoch-websocket-server/server/lib/websocket13/DataParser');
 new StringExt();
 
 
@@ -18,14 +19,13 @@ class Client13jsonRWS extends DataParser {
    */
   constructor(wcOpts) {
     super(wcOpts.debug);
-    this.wcOpts = wcOpts;
+    this.wcOpts = wcOpts; // websocket client options
     this.version = 13;
     this.subprotocol = 'jsonRWS';
 
-    this.ws;
-
-    this.clientRequest; // client HTTP request
+    this.clientRequest; // client HTTP request https://nodejs.org/api/http.html#http_class_http_clientrequest
     this.socket; // TCP Socket https://nodejs.org/api/net.html#net_class_net_socket
+    this.socketID; // socket ID number, for example: 210214082949459100
   }
 
 
@@ -70,12 +70,9 @@ class Client13jsonRWS extends DataParser {
     this.clientRequest = http.request(requestOpts);
     this.clientRequest.end();
 
+    // socket events
     this.onEvents();
     this.onUpgrade();
-    // this.onMessage(msgObj => {
-    //   console.log('msgObj::', msgObj);
-    //   if (msgObj.cmd === 'info/socket/id') { this.socketID = +msgObj.payload; } // get the client socketID
-    // });
   }
 
 
@@ -84,6 +81,8 @@ class Client13jsonRWS extends DataParser {
    * @returns {void}
    */
   disconnect() {
+    const closeBUF = this.ctrlClose(1);
+    this.socket.write(closeBUF);
     this.socket.destroy();
   }
 
@@ -117,16 +116,12 @@ class Client13jsonRWS extends DataParser {
    * Notice: 'res.socket' is same as 'socket'
    */
   onUpgrade() {
-    this.clientRequest.on('upgrade', (res, socket, firstDataChunk) => {
+    this.clientRequest.on('upgrade', async (res, socket, firstDataChunk) => {
       // console.log('isSame:::', res.socket === socket); // true
-      const headers = res.headers;
       this.socket = socket;
-
-      /********** HANDSHAKE ***********/
+      this.socketID = await this.infoSocketId();
+      const headers = res.headers;
       handshake(socket, headers, this.wsKey, this.subprotocol);
-
-      /********** DATA TRANSFER ***********/
-      this.onMessage();
     });
 
   }
@@ -141,14 +136,39 @@ class Client13jsonRWS extends DataParser {
    */
   onMessage(cb) {
     this.socket.on('data', (buff) => {
-      const msg = this.incoming(buff); // convert buffer to string
-      console.log(msg);
-      // this.debug('Received: ', msg);
-      const msgObj = jsonRWS.incoming(msg); // convert string to object
-      if(!!cb) { cb(msgObj); }
-    });
+      try {
 
+        const msgSTR = this.incoming(buff); // convert buffer to string
+
+        if (!/OPCODE 0x/.test(msgSTR)) {
+          const msgObj = jsonRWS.incoming(msgSTR); // convert string to object
+          if(!!cb) { cb(msgObj); }
+        } else {
+          this.opcodes(msgSTR, this.socket);
+        }
+
+      } catch (err) {
+        console.log(err.stack.cliBoja('red'));
+      }
+    });
   }
+
+
+  /**
+   * Parse websocket operation codes according to https://tools.ietf.org/html/rfc6455#section-5.1
+   * @param {string} msgSTR - received message
+   * @param {Socket} socket
+   */
+  opcodes(msgSTR, socket) {
+    if (msgSTR === 'OPCODE 0x8 CLOSE') {
+      throw new Error('Opcode 0x8: Websocket connection is closed by the server.');
+    } else if (msgSTR === 'OPCODE 0x9 PING') {
+      console.log('PING received');
+    } else if (msgSTR === 'OPCODE 0xA PONG') {
+      console.log('PONG received');
+    }
+  }
+
 
 
   /************* QUESTIONS ************/
@@ -226,7 +246,6 @@ class Client13jsonRWS extends DataParser {
     const msg = jsonRWS.outgoing(msgObj);
 
     // the message must be defined and client must be connected to the server
-    console.log('this.socket.readyState::', this.socket.readyState);
     if (!!msg && !!this.socket && this.socket.readyState === 'open') {
       const msgBUF = this.outgoing(msg, 1);
       this.socket.write(msgBUF);
@@ -256,6 +275,22 @@ class Client13jsonRWS extends DataParser {
 
 
 
+  /**
+   * Send PING to server n times, every ms miliseconds
+   * @param {number} n - how many times to send ping
+   * @param {number} ms - sending interval
+   */
+  async ping(n, ms) {
+    for (let i = 0; i <= n; i++) {
+      const pingBUF = this.ctrlPing();
+      this.socket.write(pingBUF);
+      console.log('ping...');
+      await helper.sleep(ms);
+    }
+  }
+
+
+
 
 
   /*********** HELPERS ************/
@@ -275,7 +310,7 @@ class Client13jsonRWS extends DataParser {
    * Debugger. Use it as this.debug(var1, var2, var3)
    * @returns {void}
    */
-  debug(...textParts) {
+  debugger(...textParts) {
     const text = textParts.join('');
     if (this.wcOpts.debug) { console.log(text); }
   }

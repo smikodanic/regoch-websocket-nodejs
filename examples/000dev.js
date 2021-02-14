@@ -67,7 +67,7 @@ class TestClient extends Client13jsonRWS {
 const wcOpts = {
   wsURL: 'ws://localhost:3211?authkey=TRTmrt',
   timeout: 3*1000, // 3 secs
-  debug: true
+  debug: false
 };
 const testClient = new TestClient(wcOpts);
 testClient.connect();
@@ -78,6 +78,6 @@ testClient.connect();
 
 setTimeout(() => {
   // testClient.sendMsg();
-  testClient.infoSocketId();
+  // testClient.infoSocketId();
 }, 1300);
 
