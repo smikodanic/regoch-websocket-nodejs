@@ -29,9 +29,22 @@ class DataParser {
     const plen_byte2 = byte_2 & 0b01111111; // payload length defined in the second byte
 
 
-    // do not parse message if the connection is closed
+    /* OPCODES https://tools.ietf.org/html/rfc6455#section-5.1
+     * %x0 denotes a continuation frame
+     * %x1 denotes a text frame
+     * %x2 denotes a binary frame
+     * %x3-7 are reserved for further non-control frames
+     * %x8 denotes a connection close
+     * %x9 denotes a ping
+     * %xA denotes a pong
+     * %xB-F are reserved for further control frames
+     */
     if (opcode === 0x8) {
-      throw new Error('Opcode 0x8: Websocket connection is closed by the client.');
+      return 'OPCODE 0x8 CLOSE';
+    } else if (opcode === 0x9) {
+      return 'OPCODE 0x9 PING';
+    } else if (opcode === 0xA) {
+      return 'OPCODE 0xA PONG';
     }
 
 
@@ -70,7 +83,7 @@ class DataParser {
     } else if (plen_byte2 === 126) {
       const byte_34 = msgBUF.readUInt16BE(1); // byte 3 and 4
       plen = byte_34;
-      payload_buff = msgBUF.slice(3, 3 + plen);
+      payload_buff = msgBUF.slice(4, 4 + plen);
 
       // get mask keys (mask keys are always 4 bytes - after payload length)
       if (mask === 1) { // only for messages from the client to the server
@@ -222,6 +235,7 @@ class DataParser {
 
   /********************* CONTROL FRAMES ******************/
   /*** https://tools.ietf.org/html/rfc6455#section-5.5 ***/
+
   /**
    * Send close frame contains (opcode: 0x8).
    * @param {0|1} mask - mask 0 if message is sent from server to client or 1 in opposite direction
@@ -250,6 +264,50 @@ class DataParser {
 
     const closeBUF = frame_buff;
     return closeBUF;
+  }
+
+
+  /**
+   * Send ping frame contains (opcode: 0x9).
+   */
+  ctrlPing() {
+    // 1.st byte
+    const fin = 1; // final message fragment
+    const rsv1 = 0;
+    const rsv2 = 0;
+    const rsv3 = 0;
+    const opcode = 0x9; // 0x9 is ping frame (or 0b1001)
+    const byte_1 = (((((((fin << 1) | rsv1) << 1) | rsv2) << 1) | rsv3) << 4) | opcode;
+
+    // 2.nd byte
+    const byte_2 = 0;
+
+    const frame_buff = Buffer.from([byte_1, byte_2]);
+
+    const pingBUF = frame_buff;
+    return pingBUF;
+  }
+
+
+  /**
+   * Send pong frame contains (opcode: 0xA).
+   */
+  ctrlPong() {
+    // 1.st byte
+    const fin = 1; // final message fragment
+    const rsv1 = 0;
+    const rsv2 = 0;
+    const rsv3 = 0;
+    const opcode = 0xA; // 0xA is ping frame (or 0b1010)
+    const byte_1 = (((((((fin << 1) | rsv1) << 1) | rsv2) << 1) | rsv3) << 4) | opcode;
+
+    // 2.nd byte
+    const byte_2 = 0;
+
+    const frame_buff = Buffer.from([byte_1, byte_2]);
+
+    const pongBUF = frame_buff;
+    return pongBUF;
   }
 
 

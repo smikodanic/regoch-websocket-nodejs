@@ -8,28 +8,27 @@ const urlNode = require('url');
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const package_json = require('../package.json');
-const { jsonRWS, handshake, helper, StringExt } = require('./lib');
-const DataParser = require('../../regoch-websocket-server/server/lib/websocket13/DataParser');
+const { jsonRWS, handshake, DataParser, helper, StringExt } = require('./lib');
+// const DataParser = require('../../regoch-websocket-server/server/lib/websocket13/DataParser');
 new StringExt();
 
 
 class Client13jsonRWS extends DataParser {
 
   /**
-   * @param {{wsURL:string, timeout:number, recconectAttempts:number, reconnectDelay:number, debug:boolean}} wcOpts - websocket client options
+   * @param {{wsURL:string, timeout:number, recconectAttempts:number, reconnectDelay:number, subprotocol:boolean, debug:boolean}} wcOpts - websocket client options
    */
   constructor(wcOpts) {
     super(wcOpts.debug);
-    this.wcOpts = wcOpts; // websocket client options
-    this.version = 13;
-    this.subprotocol = 'jsonRWS';
 
-    this.clientRequest; // client HTTP request https://nodejs.org/api/http.html#http_class_http_clientrequest
+    this.wcOpts = wcOpts; // websocket client options
     this.socket; // TCP Socket https://nodejs.org/api/net.html#net_class_net_socket
     this.socketID; // socket ID number, for example: 210214082949459100
-
-    this.eventEmitter = new EventEmitter();
     this.attempt = 1; // reconnect attempt counter
+    this.eventEmitter = new EventEmitter();
+
+    this.wsKey; // the value of 'Sec-Websocket-Key' header
+    this.clientRequest; // client HTTP request https://nodejs.org/api/http.html#http_class_http_clientrequest
   }
 
 
@@ -55,6 +54,8 @@ class Client13jsonRWS extends DataParser {
       .update(GUID)
       .digest('base64');
 
+    // to send 'Sec-WebSocket-Protocol' header
+
     // send HTTP request
     const requestOpts = {
       hostname,
@@ -65,12 +66,12 @@ class Client13jsonRWS extends DataParser {
         'Connection': 'Upgrade',
         'Upgrade': 'websocket',
         'Sec-Websocket-Key': this.wsKey,
-        'Sec-WebSocket-Version': this.version,
-        'Sec-WebSocket-Protocol': this.subprotocol,
+        'Sec-WebSocket-Version': 13,
         'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
         'User-Agent': `@regoch/client-nodejs/${package_json.version}`
       }
     };
+    if (this.wcOpts.subprotocol) { requestOpts.headers['Sec-WebSocket-Protocol'] = 'jsonRWS'; }
     this.clientRequest = http.request(requestOpts).on('error', err => {});
     this.clientRequest.end();
 
@@ -116,7 +117,6 @@ class Client13jsonRWS extends DataParser {
     delete this.clientRequest;
     if (!!this.socket) { this.socket.unref(); }
     delete this.socket;
-    delete this.socketID;
   }
 
 
@@ -158,8 +158,7 @@ class Client13jsonRWS extends DataParser {
       // console.log('isSame:::', res.socket === socket); // true
       this.socket = socket;
       this.socketID = await this.infoSocketId();
-      const headers = res.headers;
-      handshake(socket, headers, this.wsKey, this.subprotocol);
+      handshake(socket, res.headers, this.wsKey, this.subprotocol);
     });
 
   }
@@ -234,8 +233,9 @@ class Client13jsonRWS extends DataParser {
 
 
 
-  /************* QUESTIONS ************/
-  /*** Send a question to the websocket server and wait for the answer. */
+  /******************************* QUESTIONS ******************************/
+  /*** Send a question to the websocket server and wait for the answer. ***/
+
   /**
    * Send question and expect the answer.
    * @param {string} cmd - command
@@ -243,9 +243,9 @@ class Client13jsonRWS extends DataParser {
    */
   question(cmd) {
     // send the question
-    const payload = undefined;
     const to = this.socketID;
-    this.carryOut(cmd, payload, to);
+    const payload = undefined;
+    this.carryOut(to, cmd, payload);
 
     // receive the answer
     return new Promise(async (resolve, reject) => {
@@ -301,7 +301,7 @@ class Client13jsonRWS extends DataParser {
    * Send message to the websocket server if the connection is not closed (https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/readyState).
    * @returns {void}
    */
-  carryOut(cmd, payload, to) {
+  carryOut(to, cmd, payload) {
     const id = helper.generateID(); // the message ID
     const from = +this.socketID; // the sender ID
     if (!to) { to = 0; } // server ID is 0
@@ -327,7 +327,7 @@ class Client13jsonRWS extends DataParser {
   sendOne(to, msg) {
     const cmd = 'socket/sendone';
     const payload = msg;
-    this.carryOut(cmd, payload, to);
+    this.carryOut(to, cmd, payload);
   }
 
 

@@ -1,7 +1,8 @@
 /**
  * The example shows how to activate reconnection after the connection is closed.
+ * To test this script first turn off the server and then turn it on.
  */
-const {Client13jsonRWS, helper} = require('../client');
+const { Client13jsonRWS, helper } = require('../client');
 
 
 class TestClient extends Client13jsonRWS {
@@ -19,6 +20,7 @@ const main = async () => {
     timeout: 3*1000,
     recconectAttempts: 5, // try to reconnect 5 times
     recconectDelay: 6000, // delay between reconnections is 6 seconds
+    subprotocol: true,
     debug: false
   };
   const testClient = new TestClient(wcOpts);
