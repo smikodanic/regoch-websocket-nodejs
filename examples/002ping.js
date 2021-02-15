@@ -24,7 +24,7 @@ const main = async () => {
 
   await helper.sleep(2000);
 
-  testClient.ping(5, 3000);
+  testClient.ping(1000);
 };
 
 main();

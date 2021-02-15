@@ -15,7 +15,7 @@ new StringExt();
 class Client13jsonRWS extends DataParser {
 
   /**
-   * @param {{wsURL:string, timeout:number, debug:boolean}} wcOpts - websocket client options
+   * @param {{wsURL:string, timeout:number, reconnectionAttempts:number, reconnectionDelay:number, debug:boolean}} wcOpts - websocket client options
    */
   constructor(wcOpts) {
     super(wcOpts.debug);
@@ -161,12 +161,40 @@ class Client13jsonRWS extends DataParser {
    */
   opcodes(msgSTR, socket) {
     if (msgSTR === 'OPCODE 0x8 CLOSE') {
-      throw new Error('Opcode 0x8: Websocket connection is closed by the server.');
+      console.log('Opcode 0x8: Server closed wthe websocket connection'.cliBoja('yellow'));
     } else if (msgSTR === 'OPCODE 0x9 PING') {
-      console.log('PING received');
+      if (this.wcOpts.debug) { console.log('Opcode 0x9: PING received'.cliBoja('yellow')); }
     } else if (msgSTR === 'OPCODE 0xA PONG') {
-      console.log('PONG received');
+      if (this.wcOpts.debug) { console.log('Opcode 0xA: PONG received'.cliBoja('yellow')); }
     }
+  }
+
+
+  /**
+   * Send PING to server n times, every ms miliseconds
+   * @param {number} ms - sending interval
+   * @param {number} n - how many times to send ping (if 0 or undefined send infinitely)
+   */
+  async ping(ms, n) {
+    if (!!n) {
+      for (let i = 1; i <= n; i++) {
+        const pingBUF = this.ctrlPing();
+        this.socket.write(pingBUF);
+        console.log('ping1');
+        await helper.sleep(ms);
+      }
+    } else {
+      const pingBUF = this.ctrlPing();
+      this.socket.write(pingBUF);
+      console.log('ping2');
+      await helper.sleep(ms);
+      this.ping(ms);
+    }
+  }
+
+
+  async reconnect() {
+
   }
 
 
@@ -271,22 +299,6 @@ class Client13jsonRWS extends DataParser {
   sendRaw(msg) {
     const msgBUF = this.outgoing(msg, 1);
     this.socket.write(msgBUF);
-  }
-
-
-
-  /**
-   * Send PING to server n times, every ms miliseconds
-   * @param {number} n - how many times to send ping
-   * @param {number} ms - sending interval
-   */
-  async ping(n, ms) {
-    for (let i = 0; i <= n; i++) {
-      const pingBUF = this.ctrlPing();
-      this.socket.write(pingBUF);
-      console.log('ping...');
-      await helper.sleep(ms);
-    }
   }
 
 
