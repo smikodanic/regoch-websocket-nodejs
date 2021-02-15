@@ -1,5 +1,5 @@
 /**
- * Ping example.
+ * Pong example.
  */
 const {Client13jsonRWS, helper} = require('../client');
 
@@ -24,7 +24,11 @@ const main = async () => {
 
   await helper.sleep(2000);
 
-  testClient.ping(1000, 3); // 3 times, every 1 second
+  testClient.ping(500);
+
+  testClient.eventEmitter.on('pong', () => {
+    console.log('PONG came');
+  });
 };
 
 main();

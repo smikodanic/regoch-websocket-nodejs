@@ -6,6 +6,7 @@
 const http = require('http');
 const urlNode = require('url');
 const crypto = require('crypto');
+const { EventEmitter } = require('events');
 const package_json = require('../package.json');
 const { jsonRWS, handshake, helper, StringExt } = require('./lib');
 const DataParser = require('../../regoch-websocket-server/server/lib/websocket13/DataParser');
@@ -15,7 +16,7 @@ new StringExt();
 class Client13jsonRWS extends DataParser {
 
   /**
-   * @param {{wsURL:string, timeout:number, reconnectionAttempts:number, reconnectionDelay:number, debug:boolean}} wcOpts - websocket client options
+   * @param {{wsURL:string, timeout:number, recconectAttempts:number, reconnectDelay:number, debug:boolean}} wcOpts - websocket client options
    */
   constructor(wcOpts) {
     super(wcOpts.debug);
@@ -26,6 +27,9 @@ class Client13jsonRWS extends DataParser {
     this.clientRequest; // client HTTP request https://nodejs.org/api/http.html#http_class_http_clientrequest
     this.socket; // TCP Socket https://nodejs.org/api/net.html#net_class_net_socket
     this.socketID; // socket ID number, for example: 210214082949459100
+
+    this.eventEmitter = new EventEmitter();
+    this.attempt = 1; // reconnect attempt counter
   }
 
 
@@ -67,7 +71,7 @@ class Client13jsonRWS extends DataParser {
         'User-Agent': `@regoch/client-nodejs/${package_json.version}`
       }
     };
-    this.clientRequest = http.request(requestOpts);
+    this.clientRequest = http.request(requestOpts).on('error', err => {});
     this.clientRequest.end();
 
     // socket events
@@ -84,6 +88,35 @@ class Client13jsonRWS extends DataParser {
     const closeBUF = this.ctrlClose(1);
     this.socket.write(closeBUF);
     this.socket.destroy();
+    // this.socket.unref();
+  }
+
+
+  /**
+   * Try to reconnect the client when the socket is closed.
+   * This method is fired on every 'close' socket's event.
+   */
+  async reconnect() {
+    const attempts = this.wcOpts.recconectAttempts;
+    const delay = this.wcOpts.recconectDelay;
+
+    if (this.attempt <= attempts) {
+      await helper.sleep(delay);
+      this.connect();
+      console.log(`Reconnect attempt #${this.attempt} of ${attempts} in ${delay}ms`.cliBoja('yellow'));
+      this.attempt++;
+    }
+  }
+
+
+  /**
+   * Reset the properties.
+   */
+  reset() {
+    delete this.clientRequest;
+    if (!!this.socket) { this.socket.unref(); }
+    delete this.socket;
+    delete this.socketID;
   }
 
 
@@ -94,16 +127,21 @@ class Client13jsonRWS extends DataParser {
    */
   onEvents() {
     this.clientRequest.on('socket', socket => {
+
       socket.on('connect', () => {
         console.log('WS Connection opened'.cliBoja('blue'));
       });
 
-      socket.on('close', () => {
-        console.log('WS Connection closed'.cliBoja('blue'));
+      socket.on('close', async () => {
+        console.log('\nWS Connection closed'.cliBoja('blue'));
+        this.reset();
+        this.reconnect();
       });
 
       socket.on('error', (err) => {
-        console.log(err.stack.cliBoja('red'));
+        let errMsg = err.stack;
+        if (/ECONNREFUSED/.test(err.stack)) { errMsg = `No connection to server ${this.wcOpts.wsURL}`; }
+        console.log(errMsg.cliBoja('red'));
       });
     });
   }
@@ -162,10 +200,13 @@ class Client13jsonRWS extends DataParser {
   opcodes(msgSTR, socket) {
     if (msgSTR === 'OPCODE 0x8 CLOSE') {
       console.log('Opcode 0x8: Server closed wthe websocket connection'.cliBoja('yellow'));
+      this.eventEmitter.emit('close');
     } else if (msgSTR === 'OPCODE 0x9 PING') {
       if (this.wcOpts.debug) { console.log('Opcode 0x9: PING received'.cliBoja('yellow')); }
+      this.eventEmitter.emit('ping');
     } else if (msgSTR === 'OPCODE 0xA PONG') {
       if (this.wcOpts.debug) { console.log('Opcode 0xA: PONG received'.cliBoja('yellow')); }
+      this.eventEmitter.emit('pong');
     }
   }
 
@@ -180,22 +221,16 @@ class Client13jsonRWS extends DataParser {
       for (let i = 1; i <= n; i++) {
         const pingBUF = this.ctrlPing();
         this.socket.write(pingBUF);
-        console.log('ping1');
         await helper.sleep(ms);
       }
     } else {
       const pingBUF = this.ctrlPing();
       this.socket.write(pingBUF);
-      console.log('ping2');
       await helper.sleep(ms);
       this.ping(ms);
     }
   }
 
-
-  async reconnect() {
-
-  }
 
 
 
