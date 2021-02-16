@@ -16,7 +16,7 @@ new StringExt();
 class Client13jsonRWS extends DataParser {
 
   /**
-   * @param {{wsURL:string, timeout:number, recconectAttempts:number, reconnectDelay:number, subprotocol:boolean, debug:boolean}} wcOpts - websocket client options
+   * @param {{wsURL:string, timeout:number, recconectAttempts:number, reconnectDelay:number, subprotocols:string[], debug:boolean}} wcOpts - websocket client options
    */
   constructor(wcOpts) {
     super(wcOpts.debug);
@@ -67,11 +67,11 @@ class Client13jsonRWS extends DataParser {
         'Upgrade': 'websocket',
         'Sec-Websocket-Key': this.wsKey,
         'Sec-WebSocket-Version': 13,
+        'Sec-WebSocket-Protocol': this.wcOpts.subprotocols.join(','),
         'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
         'User-Agent': `@regoch/client-nodejs/${package_json.version}`
       }
     };
-    if (this.wcOpts.subprotocol) { requestOpts.headers['Sec-WebSocket-Protocol'] = 'jsonRWS'; }
     this.clientRequest = http.request(requestOpts).on('error', err => {});
     this.clientRequest.end();
 
@@ -89,7 +89,6 @@ class Client13jsonRWS extends DataParser {
     const closeBUF = this.ctrlClose(1);
     this.socket.write(closeBUF);
     this.socket.destroy();
-    // this.socket.unref();
   }
 
 
@@ -158,9 +157,8 @@ class Client13jsonRWS extends DataParser {
       // console.log('isSame:::', res.socket === socket); // true
       this.socket = socket;
       this.socketID = await this.infoSocketId();
-      handshake(socket, res.headers, this.wsKey, this.subprotocol);
+      handshake(socket, res.headers, this.wsKey, this.wcOpts.subprotocols);
     });
-
   }
 
 
