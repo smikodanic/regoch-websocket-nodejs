@@ -87,8 +87,7 @@ class Client13jsonRWS extends DataParser {
    */
   disconnect() {
     const closeBUF = this.ctrlClose(1);
-    this.socket.write(closeBUF);
-    this.socket.destroy();
+    this.socketWrite(closeBUF);
   }
 
 
@@ -109,16 +108,6 @@ class Client13jsonRWS extends DataParser {
   }
 
 
-  /**
-   * Reset the properties.
-   */
-  reset() {
-    delete this.clientRequest;
-    if (!!this.socket) { this.socket.unref(); }
-    delete this.socket;
-  }
-
-
 
   /**
    * Activate socket events. According to https://nodejs.org/api/net.html#net_class_net_socket.
@@ -126,22 +115,40 @@ class Client13jsonRWS extends DataParser {
    */
   onEvents() {
     this.clientRequest.on('socket', socket => {
-
       socket.on('connect', () => {
         console.log('WS Connection opened'.cliBoja('blue'));
       });
 
-      socket.on('close', async () => {
-        console.log('\nWS Connection closed'.cliBoja('blue'));
-        this.reset();
+
+      // hadError determine if the socket is closed due to emitted 'error' event
+      socket.on('close', async (hadError) => {
+        delete this.clientRequest;
+        delete this.socket;
+        delete this.socketID;
+        if (hadError) {
+          console.log('\nWS Connection closed due to internal error'.cliBoja('blue'));
+        } else {
+          console.log('\nWS Connection closed'.cliBoja('blue'));
+          this.attempt = 1; // socket is probably closed because server is down, so reconnecting should start from the 1.st attempt
+        }
         this.reconnect();
       });
 
+
       socket.on('error', (err) => {
         let errMsg = err.stack;
-        if (/ECONNREFUSED/.test(err.stack)) { errMsg = `No connection to server ${this.wcOpts.wsURL}`; }
+
+        if (/ECONNREFUSED/.test(err.stack)) {
+          errMsg = `No connection to server ${this.wcOpts.wsURL}`;
+        } else {
+          this.wcOpts.recconectAttempts = 0; // do not reconnect
+          this.disconnect();
+        }
+
         console.log(errMsg.cliBoja('red'));
       });
+
+
     });
   }
 
@@ -155,9 +162,13 @@ class Client13jsonRWS extends DataParser {
   onUpgrade() {
     this.clientRequest.on('upgrade', async (res, socket, firstDataChunk) => {
       // console.log('isSame:::', res.socket === socket); // true
-      this.socket = socket;
-      this.socketID = await this.infoSocketId();
-      handshake(socket, res.headers, this.wsKey, this.wcOpts.subprotocols);
+      try {
+        this.socket = socket;
+        handshake(res.headers, this.wsKey, this.wcOpts.subprotocols);
+        this.socketID = await this.infoSocketId();
+      } catch (err) {
+        socket.emit('error', err);
+      }
     });
   }
 
@@ -183,7 +194,7 @@ class Client13jsonRWS extends DataParser {
         }
 
       } catch (err) {
-        console.log(err.stack.cliBoja('red'));
+        this.socket.emit('error', err);
       }
     });
   }
@@ -217,12 +228,12 @@ class Client13jsonRWS extends DataParser {
     if (!!n) {
       for (let i = 1; i <= n; i++) {
         const pingBUF = this.ctrlPing();
-        this.socket.write(pingBUF);
+        this.socketWrite(pingBUF);
         await helper.sleep(ms);
       }
     } else {
       const pingBUF = this.ctrlPing();
-      this.socket.write(pingBUF);
+      this.socketWrite(pingBUF);
       await helper.sleep(ms);
       this.ping(ms);
     }
@@ -309,9 +320,21 @@ class Client13jsonRWS extends DataParser {
     // the message must be defined and client must be connected to the server
     if (!!msg && !!this.socket && this.socket.readyState === 'open') {
       const msgBUF = this.outgoing(msg, 1);
-      this.socket.write(msgBUF);
+      this.socketWrite(msgBUF);
     } else {
       throw new Error('The message is not defined or the client is disconnected.');
+    }
+  }
+
+
+  /**
+   * Check if socket is writable and send message in buffer format.
+   * @param {Buffer} msgBUF - message to server
+   * @returns {void}
+   */
+  socketWrite(msgBUF) {
+    if (!!this.socket && this.socket.writable) {
+      this.socket.write(msgBUF);
     }
   }
 
@@ -326,12 +349,6 @@ class Client13jsonRWS extends DataParser {
     const cmd = 'socket/sendone';
     const payload = msg;
     this.carryOut(to, cmd, payload);
-  }
-
-
-  sendRaw(msg) {
-    const msgBUF = this.outgoing(msg, 1);
-    this.socket.write(msgBUF);
   }
 
 

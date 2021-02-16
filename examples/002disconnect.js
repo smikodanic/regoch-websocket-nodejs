@@ -1,6 +1,5 @@
 /**
- * Ping example.
- * Client is sending pin (opcode 0x9) and the server is responding with pong (opcode 0xA).
+ * Connect and disconnect example.
  */
 const {Client13jsonRWS, helper} = require('../client');
 
@@ -18,17 +17,18 @@ const main = async () => {
   const wcOpts = {
     wsURL: 'ws://localhost:3211?authkey=TRTmrt',
     timeout: 3*1000, // wait for answer
-    recconectAttempts: 3, // try to reconnect n times
+    recconectAttempts: 0, // try to reconnect n times
     recconectDelay: 3000, // delay between reconnections
     subprotocols: ['jsonRWS'],
-    debug: true
+    debug: false
   };
   const testClient = new TestClient(wcOpts);
   testClient.connect();
 
-  await helper.sleep(2000);
 
-  testClient.ping(1000, 3); // send ping 3 times, every 1 second
+  // disconnect from websocket server after 3 seconds
+  await helper.sleep(3000);
+  testClient.disconnect();
 };
 
 main();
