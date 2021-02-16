@@ -55,8 +55,6 @@ class Client13jsonRWS extends DataParser {
       .update(GUID)
       .digest('base64');
 
-    // to send 'Sec-WebSocket-Protocol' header
-
     // send HTTP request
     const requestOpts = {
       hostname,
@@ -112,50 +110,8 @@ class Client13jsonRWS extends DataParser {
 
 
 
-  /**
-   * Activate socket events. According to https://nodejs.org/api/net.html#net_class_net_socket.
-   * @param {Socket} socket
-   */
-  onEvents() {
-    this.clientRequest.on('socket', socket => {
-      socket.on('connect', () => {
-        console.log('WS Connection opened'.cliBoja('blue'));
-      });
 
-
-      // hadError determine if the socket is closed due to emitted 'error' event
-      socket.on('close', async (hadError) => {
-        delete this.clientRequest;
-        delete this.socket;
-        delete this.socketID;
-        if (hadError) {
-          console.log('\nWS Connection closed due to internal error'.cliBoja('blue'));
-        } else {
-          console.log('\nWS Connection closed'.cliBoja('blue'));
-          this.attempt = 1; // socket is probably closed because server is down, so reconnecting should start from the 1.st attempt
-        }
-        this.reconnect();
-      });
-
-
-      socket.on('error', (err) => {
-        let errMsg = err.stack;
-
-        if (/ECONNREFUSED/.test(err.stack)) {
-          errMsg = `No connection to server ${this.wcOpts.wsURL}`;
-        } else {
-          this.wcOpts.recconectAttempts = 0; // do not reconnect
-          this.disconnect();
-        }
-
-        console.log(errMsg.cliBoja('red'));
-      });
-
-
-    });
-  }
-
-
+  /************ EVENTS **************/
   /**
    * Catch NodeJS process events and disconnect the client.
    * For example disconnect on crtl+c or on uncaught exception.
@@ -185,6 +141,48 @@ class Client13jsonRWS extends DataParser {
   }
 
 
+  /**
+   * Socket events. According to https://nodejs.org/api/net.html#net_class_net_socket.
+   * @param {Socket} socket
+   */
+  onEvents() {
+    this.clientRequest.on('socket', socket => {
+      socket.on('connect', () => {
+        console.log('WS Connection opened'.cliBoja('blue'));
+      });
+
+
+      // hadError determine if the socket is closed due to emitted 'error' event
+      socket.on('close', async (hadError) => {
+        delete this.clientRequest;
+        delete this.socket;
+        delete this.socketID;
+        if (hadError) {
+          console.log('\nWS Connection closed due to internal error'.cliBoja('blue'));
+        } else {
+          console.log('\nWS Connection closed'.cliBoja('blue'));
+          this.attempt = 1; // socket is probably closed because server is down, so reconnecting should start from the 1.st attempt
+        }
+        this.reconnect();
+      });
+
+
+      socket.on('error', (err) => {
+        let errMsg = err.stack;
+        if (/ECONNREFUSED/.test(err.stack)) {
+          errMsg = `No connection to server ${this.wcOpts.wsURL}`;
+        } else {
+          this.wcOpts.recconectAttempts = 0; // do not reconnect
+          this.disconnect();
+        }
+        console.log(errMsg.cliBoja('red'));
+      });
+
+
+    });
+  }
+
+
 
   /**
    * When "Connection: Upgrade" header is sent from the server.
@@ -206,25 +204,21 @@ class Client13jsonRWS extends DataParser {
   }
 
 
-
-  /************* RECEIVER ************/
   /**
    * Receive the message event and push it to msgStream.
    * @param {Function} - callback function
    * @returns {void}
    */
   onMessage(cb) {
-    this.socket.on('data', (buff) => {
+    this.socket.on('data', msgBUF => {
       try {
-        const msgSTR = this.incoming(buff); // convert buffer to string
-        this.eventEmitter.emit('messageSTR', msgSTR);
+        const msgSTR = this.incoming(msgBUF); // convert buffer to string
 
         if (/OPCODE 0x/.test(msgSTR)) {
           this.opcodes(msgSTR);
         } else {
-          const msgObj = jsonRWS.incoming(msgSTR); // convert string to object
-          this.eventEmitter.emit('message', msgObj);
-          if(!!cb) { cb(msgObj); }
+          const msg = jsonRWS.incoming(msgSTR); // convert string to object
+          if(!!cb) { cb(msg, msgSTR, msgBUF); }
         }
 
       } catch (err) {
@@ -241,7 +235,7 @@ class Client13jsonRWS extends DataParser {
   opcodes(msgSTR) {
     if (msgSTR === 'OPCODE 0x8 CLOSE') {
       console.log('Opcode 0x8: Server closed wthe websocket connection'.cliBoja('yellow'));
-      this.eventEmitter.emit('close');
+      this.eventEmitter.emit('closedBYserver');
     } else if (msgSTR === 'OPCODE 0x9 PING') {
       if (this.wcOpts.debug) { console.log('Opcode 0x9: PING received'.cliBoja('yellow')); }
       this.eventEmitter.emit('ping');
@@ -291,7 +285,7 @@ class Client13jsonRWS extends DataParser {
 
     // receive the answer
     return new Promise(async (resolve, reject) => {
-      this.onMessage(async (msgObj) => {
+      this.onMessage(msgObj => {
         if (msgObj.cmd === cmd) { resolve(msgObj); }
       });
       await helper.sleep(this.wcOpts.timeout);
@@ -338,6 +332,7 @@ class Client13jsonRWS extends DataParser {
 
 
 
+
   /************* SEND MESSAGE TO OTHER CLIENTS ************/
   /**
    * Send message to the websocket server after the message is processed by subprotocol and DataParser.
@@ -351,11 +346,11 @@ class Client13jsonRWS extends DataParser {
     const msg = jsonRWS.outgoing(msgObj);
 
     // the message must be defined and client must be connected to the server
-    if (!!msg && !!this.socket) {
+    if (!!msg) {
       const msgBUF = this.outgoing(msg, 1);
       this.socketWrite(msgBUF);
     } else {
-      throw new Error('The message is not defined or the client is disconnected.');
+      throw new Error('The message is not defined.');
     }
   }
 
@@ -370,7 +365,7 @@ class Client13jsonRWS extends DataParser {
     if (!!this.socket && this.socket.writable && this.socket.readyState === 'open') {
       this.socket.write(msgBUF);
     } else {
-      this.debugger('Socket is not writeble');
+      this.debugger('Socket is not writeble or doesn\'t exist');
     }
   }
 
@@ -403,7 +398,7 @@ class Client13jsonRWS extends DataParser {
 
   /**
    * Wrapper around the eventEmitter
-   * @param {string} eventName - event name: 'close', 'ping', 'pong', 'messageSTR', 'message'
+   * @param {string} eventName - event name: 'connected', 'closedBYserver', 'ping', 'pong'
    * @param {Function} listener - callback function
    */
   on(eventName, listener) {

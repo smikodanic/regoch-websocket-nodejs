@@ -1,5 +1,5 @@
 /**
- * Send question about the client ID.
+ * Send to one client.
  */
 const { Client13jsonRWS, helper } = require('../client');
 
@@ -9,7 +9,6 @@ class TestClient extends Client13jsonRWS {
     super(wcOpts);
   }
 }
-
 
 
 const main = async () => {
@@ -25,9 +24,9 @@ const main = async () => {
   const testClient = new TestClient(wcOpts);
   await testClient.connect();
 
-  // send question about the info
-  const socketID = await testClient.infoSocketId();
-  console.log('socketID::', socketID);
+
+
+  testClient.sendOne(210216151019162340, 'nesto');
 };
 
 
