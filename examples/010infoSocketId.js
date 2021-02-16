@@ -1,6 +1,5 @@
 /**
- * The example shows how to activate reconnection after the connection is closed.
- * To test this script first turn off the server and then turn it on. The client should reconnect automatically when server is turned on.
+ * Send question about the client ID.
  */
 const { Client13jsonRWS, helper } = require('../client');
 
@@ -25,6 +24,12 @@ const main = async () => {
   };
   const testClient = new TestClient(wcOpts);
   await testClient.connect();
+
+  // send question about the info
+  const socketID = await testClient.infoSocketId();
+  console.log('socketID::', socketID);
 };
+
+
 
 main().catch(err => console.log(err));

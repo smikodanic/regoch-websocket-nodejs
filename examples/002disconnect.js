@@ -23,7 +23,7 @@ const main = async () => {
     debug: false
   };
   const testClient = new TestClient(wcOpts);
-  testClient.connect();
+  await testClient.connect();
 
 
   // disconnect from websocket server after 3 seconds

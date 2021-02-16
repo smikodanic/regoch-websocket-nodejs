@@ -79,6 +79,8 @@ class Client13jsonRWS extends DataParser {
     // socket events
     this.onEvents();
     this.onUpgrade();
+
+    return new Promise(resolve => this.eventEmitter.on('connected', () => { resolve(this.socket); }));
   }
 
 
@@ -196,6 +198,7 @@ class Client13jsonRWS extends DataParser {
         this.socket = socket;
         handshake(res.headers, this.wsKey, this.wcOpts.subprotocols);
         this.socketID = await this.infoSocketId();
+        this.eventEmitter.emit('connected');
       } catch (err) {
         socket.emit('error', err);
       }
@@ -213,14 +216,15 @@ class Client13jsonRWS extends DataParser {
   onMessage(cb) {
     this.socket.on('data', (buff) => {
       try {
-
         const msgSTR = this.incoming(buff); // convert buffer to string
+        this.eventEmitter.emit('messageSTR', msgSTR);
 
-        if (!/OPCODE 0x/.test(msgSTR)) {
-          const msgObj = jsonRWS.incoming(msgSTR); // convert string to object
-          if(!!cb) { cb(msgObj); }
+        if (/OPCODE 0x/.test(msgSTR)) {
+          this.opcodes(msgSTR);
         } else {
-          this.opcodes(msgSTR, this.socket);
+          const msgObj = jsonRWS.incoming(msgSTR); // convert string to object
+          this.eventEmitter.emit('message', msgObj);
+          if(!!cb) { cb(msgObj); }
         }
 
       } catch (err) {
@@ -233,9 +237,8 @@ class Client13jsonRWS extends DataParser {
   /**
    * Parse websocket operation codes according to https://tools.ietf.org/html/rfc6455#section-5.1
    * @param {string} msgSTR - received message
-   * @param {Socket} socket
    */
-  opcodes(msgSTR, socket) {
+  opcodes(msgSTR) {
     if (msgSTR === 'OPCODE 0x8 CLOSE') {
       console.log('Opcode 0x8: Server closed wthe websocket connection'.cliBoja('yellow'));
       this.eventEmitter.emit('close');
@@ -337,7 +340,7 @@ class Client13jsonRWS extends DataParser {
 
   /************* SEND MESSAGE TO OTHER CLIENTS ************/
   /**
-   * Send message to the websocket server if the connection is not closed (https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/readyState).
+   * Send message to the websocket server after the message is processed by subprotocol and DataParser.
    * @returns {void}
    */
   carryOut(to, cmd, payload) {
@@ -348,7 +351,7 @@ class Client13jsonRWS extends DataParser {
     const msg = jsonRWS.outgoing(msgObj);
 
     // the message must be defined and client must be connected to the server
-    if (!!msg && !!this.socket && this.socket.readyState === 'open') {
+    if (!!msg && !!this.socket) {
       const msgBUF = this.outgoing(msg, 1);
       this.socketWrite(msgBUF);
     } else {
@@ -358,15 +361,16 @@ class Client13jsonRWS extends DataParser {
 
 
   /**
-   * Check if socket is writable and send message in buffer format.
+   * Check if socket is writable and not closed (https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/readyState)
+   * and send message in buffer format.
    * @param {Buffer} msgBUF - message to server
    * @returns {void}
    */
   socketWrite(msgBUF) {
-    if (!!this.socket && this.socket.writable) {
+    if (!!this.socket && this.socket.writable && this.socket.readyState === 'open') {
       this.socket.write(msgBUF);
     } else {
-      console.log('Socket is not writeble'.cliBoja('yellow'));
+      this.debugger('Socket is not writeble');
     }
   }
 
@@ -387,26 +391,23 @@ class Client13jsonRWS extends DataParser {
 
 
 
-  /*********** HELPERS ************/
+  /*********** MISC ************/
   /**
-   * Get message size in bytes.
-   * For example: A -> 1 , Š -> 2 , ABC -> 3
-   * @param {string} msg - message sent to server
-   * @returns {number}
-   */
-  getMessageSize(msg) {
-    const bytes = Buffer.byteLength(msg, 'utf8');
-    return +bytes;
-  }
-
-
-  /**
-   * Debugger. Use it as this.debug(var1, var2, var3)
+   * Debugger. Use it as this.debugger(var1, var2, var3)
    * @returns {void}
    */
   debugger(...textParts) {
-    const text = textParts.join('');
-    if (this.wcOpts.debug) { console.log(text); }
+    const text = textParts.join(' ');
+    if (this.wcOpts.debug) { console.log(text.cliBoja('yellow')); }
+  }
+
+  /**
+   * Wrapper around the eventEmitter
+   * @param {string} eventName - event name: 'close', 'ping', 'pong', 'messageSTR', 'message'
+   * @param {Function} listener - callback function
+   */
+  on(eventName, listener) {
+    return this.eventEmitter.on(eventName, listener);
   }
 
 

@@ -24,7 +24,7 @@ const main = async () => {
     debug: true
   };
   const testClient = new TestClient(wcOpts);
-  testClient.connect();
+  await testClient.connect();
 
   await helper.sleep(2000);
 

@@ -23,7 +23,11 @@ const main = async () => {
     debug: false
   };
   const testClient = new TestClient(wcOpts);
-  testClient.connect();
+  const socket = await testClient.connect();
+  console.log('---SOCKET---');
+  console.log('readyState::', socket.readyState);
+  console.log('writable::', socket.writable);
+  console.log('readable::', socket.readable);
 
 };
 

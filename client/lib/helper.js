@@ -7,7 +7,7 @@ class Helper {
    * @returns {number}
    */
   getMessageSize(msg) {
-    const bytes = new Blob([msg]).size;
+    const bytes = Buffer.byteLength(msg, 'utf8');
     return +bytes;
   }
 
