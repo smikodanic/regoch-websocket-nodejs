@@ -383,6 +383,44 @@ class Client13jsonRWS extends DataParser {
   }
 
 
+  /**
+   * Send message (payload) to one or more clients.
+   * @param {number[]} to - [210205081923171300, 210205082042463230]
+   * @param {any} msg - message sent to the clients
+   * @returns {void}
+   */
+  send(to, msg) {
+    const cmd = 'socket/send';
+    const payload = msg;
+    this.carryOut(to, cmd, payload);
+  }
+
+
+  /**
+   * Send message (payload) to all clients except the sender.
+   * @param {any} msg - message sent to the clients
+   * @returns {void}
+   */
+  broadcast(msg) {
+    const to = 0;
+    const cmd = 'socket/broadcast';
+    const payload = msg;
+    this.carryOut(to, cmd, payload);
+  }
+
+  /**
+   * Send message (payload) to all clients and the sender.
+   * @param {any} msg - message sent to the clients
+   * @returns {void}
+   */
+  sendAll(msg) {
+    const to = 0;
+    const cmd = 'socket/sendall';
+    const payload = msg;
+    this.carryOut(to, cmd, payload);
+  }
+
+
 
 
 

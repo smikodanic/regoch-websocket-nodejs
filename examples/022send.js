@@ -1,5 +1,6 @@
 /**
- * Send to one client.
+ * Send to one or many clients.
+ * Open clients in other two terminals.
  */
 const { Client13jsonRWS, helper } = require('../client');
 
@@ -25,8 +26,8 @@ const main = async () => {
   await testClient.connect();
 
 
-
-  testClient.sendOne(210216151019162340, 'nesto');
+  console.log('message sent');
+  testClient.send([210216154413322880, 210216154407108130], 'Some message to multiple clients');
 };
 
 
