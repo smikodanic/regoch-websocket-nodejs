@@ -29,6 +29,7 @@ class Client13jsonRWS extends DataParser {
 
     this.wsKey; // the value of 'Sec-Websocket-Key' header
     this.clientRequest; // client HTTP request https://nodejs.org/api/http.html#http_class_http_clientrequest
+    this.onProcessEvents();
   }
 
 
@@ -149,6 +150,35 @@ class Client13jsonRWS extends DataParser {
       });
 
 
+    });
+  }
+
+
+  /**
+   * Catch NodeJS process events and disconnect the client.
+   * For example disconnect on crtl+c or on uncaught exception.
+   */
+  onProcessEvents() {
+    process.on('cleanup', this.disconnect.bind(this));
+
+    process.on('exit', () => {
+      process.emit('cleanup');
+    });
+
+    // catch ctrl+c event and exit normally
+    process.on('SIGINT', () => {
+      process.exit(2);
+    });
+
+    // catch uncaught exceptions, log, then exit normally
+    process.on('uncaughtException', (err) => {
+      console.log(err.stack.cliBoja('red'));
+      process.exit();
+    });
+
+    process.on('unhandledRejection', (err) => {
+      console.log(err.stack.cliBoja('red'));
+      process.exit();
     });
   }
 
@@ -335,6 +365,8 @@ class Client13jsonRWS extends DataParser {
   socketWrite(msgBUF) {
     if (!!this.socket && this.socket.writable) {
       this.socket.write(msgBUF);
+    } else {
+      console.log('Socket is not writeble'.cliBoja('yellow'));
     }
   }
 
