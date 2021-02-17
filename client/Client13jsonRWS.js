@@ -26,6 +26,7 @@ class Client13jsonRWS extends DataParser {
     this.socketID; // socket ID number, for example: 210214082949459100
     this.attempt = 1; // reconnect attempt counter
     this.eventEmitter = new EventEmitter();
+    this.eventEmitter.setMaxListeners(8);
 
     this.wsKey; // the value of 'Sec-Websocket-Key' header
     this.clientRequest; // client HTTP request https://nodejs.org/api/http.html#http_class_http_clientrequest
@@ -78,7 +79,12 @@ class Client13jsonRWS extends DataParser {
     this.onEvents();
     this.onUpgrade();
 
-    return new Promise(resolve => this.eventEmitter.on('connected', () => { resolve(this.socket); }));
+    // return socket as promise
+    return new Promise(resolve => {
+      // this.eventEmitter.removeAllListeners(); // not needed if once() is used
+      this.eventEmitter.once('connected', () => { resolve(this.socket); });
+      // console.log(`"connected" listeners: ${this.eventEmitter.listenerCount('connected')}`.cliBoja('yellow'));
+    });
   }
 
 
@@ -148,7 +154,7 @@ class Client13jsonRWS extends DataParser {
   onEvents() {
     this.clientRequest.on('socket', socket => {
       socket.on('connect', () => {
-        console.log('WS Connection opened'.cliBoja('blue'));
+        console.log(`WS Connection opened`.cliBoja('blue'));
       });
 
 
@@ -195,9 +201,9 @@ class Client13jsonRWS extends DataParser {
       try {
         this.socket = socket;
         handshake(res.headers, this.wsKey, this.wcOpts.subprotocols);
-        this.socketID = await this.infoSocketId();
-        this.eventEmitter.emit('connected');
+        this.socketID = res.headers['sec-websocket-socketid'];
         console.log(`socketID: ${this.socketID}`.cliBoja('blue'));
+        this.eventEmitter.emit('connected');
         this.onMessage(false, true); // emits the message to eventEmitter
       } catch (err) {
         socket.emit('error', err);
@@ -307,7 +313,6 @@ class Client13jsonRWS extends DataParser {
   async infoSocketId() {
     const answer = await this.question('info/socket/id');
     this.socketID = +answer.payload;
-    console.log();
     return this.socketID;
   }
 
@@ -430,6 +435,85 @@ class Client13jsonRWS extends DataParser {
 
 
 
+  /************* ROOM ************/
+  /**
+   * Subscribe in the room.
+   * @param {string} roomName
+   * @returns {void}
+   */
+  roomEnter(roomName) {
+    const to = 0;
+    const cmd = 'room/enter';
+    const payload = roomName;
+    this.carryOut(to, cmd, payload);
+  }
+
+  /**
+   * Unsubscribe from the room.
+   * @param {string} roomName
+   * @returns {void}
+   */
+  roomExit(roomName) {
+    const to = 0;
+    const cmd = 'room/exit';
+    const payload = roomName;
+    this.carryOut(to, cmd, payload);
+  }
+
+  /**
+   * Unsubscribe from all rooms.
+   * @returns {void}
+   */
+  roomExitAll() {
+    const to = 0;
+    const cmd = 'room/exitall';
+    const payload = undefined;
+    this.carryOut(to, cmd, payload);
+  }
+
+  /**
+   * Send message to the room.
+   * @param {string} roomName
+   * @param {any} msg
+   * @returns {void}
+   */
+  roomSend(roomName, msg) {
+    const to = roomName;
+    const cmd = 'room/send';
+    const payload = msg;
+    this.carryOut(to, cmd, payload);
+  }
+
+
+
+  /********* SEND MESSAGE (COMMAND) TO SERVER *********/
+  /**
+   * Setup a nick name.
+   * @param {string} nickname - nick name
+   * @returns {void}
+   */
+  setNick(nickname) {
+    const to = 0;
+    const cmd = 'socket/nick';
+    const payload = nickname;
+    this.carryOut(to, cmd, payload);
+  }
+
+
+  /**
+   * Send route command.
+   * @param {string} uri - route URI, for example /shop/product/55
+   * @param {any} body - body
+   * @returns {void}
+   */
+  route(uri, body) {
+    const to = 0;
+    const cmd = 'route';
+    const payload = {uri, body};
+    this.carryOut(to, cmd, payload);
+  }
+
+
 
 
   /*********** MISC ************/
@@ -448,7 +532,9 @@ class Client13jsonRWS extends DataParser {
    * @param {Function} listener - callback function
    */
   on(eventName, listener) {
-    return this.eventEmitter.on(eventName, listener);
+    const ee = this.eventEmitter.on(eventName, listener);
+    console.log(`Listeners of "${eventName}": ${this.eventEmitter.listenerCount('connected')}`.cliBoja('yellow'));
+    return ee;
   }
 
 
