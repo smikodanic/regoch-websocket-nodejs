@@ -25,7 +25,7 @@ const main = async () => {
   await testClient.connect();
 
   // IMPORTANT!!! Set the message listener before the question is sent.
-  testClient.onMessage(msg => {
+  testClient.on('message', (msg, msgSTR, msgBUF) => {
     console.log('msg::', msg);
     // router transitional variable
     const router = testClient.router;
