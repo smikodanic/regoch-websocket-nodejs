@@ -8,7 +8,7 @@ const urlNode = require('url');
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const package_json = require('../package.json');
-const { jsonRWS, handshake, DataParser, helper, StringExt } = require('./lib');
+const { jsonRWS, handshake, DataParser, helper, StringExt, Router } = require('./lib');
 // const DataParser = require('../../regoch-websocket-server/server/lib/websocket13/DataParser');
 new StringExt();
 
@@ -31,6 +31,8 @@ class Client13jsonRWS extends DataParser {
     this.wsKey; // the value of 'Sec-Websocket-Key' header
     this.clientRequest; // client HTTP request https://nodejs.org/api/http.html#http_class_http_clientrequest
     this.onProcessEvents();
+
+    this.router = new Router(this.wcOpts.debug);
   }
 
 
@@ -512,6 +514,7 @@ class Client13jsonRWS extends DataParser {
     const payload = {uri, body};
     this.carryOut(to, cmd, payload);
   }
+
 
 
 
