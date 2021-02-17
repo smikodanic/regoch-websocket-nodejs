@@ -27,7 +27,7 @@ const main = async () => {
 
 
   console.log('message sent');
-  testClient.send([210216154413322880, 210216154407108130], 'Some message to multiple clients');
+  testClient.send([210217103629571780, 210217103856975330], 'Some message to multiple clients');
 };
 
 

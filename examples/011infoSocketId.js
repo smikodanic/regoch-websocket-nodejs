@@ -27,10 +27,8 @@ const main = async () => {
 
 
   // IMPORTANT!!! Set the message listener before the question is sent.
-  testClient.onMessage((msg, msgSTR, msgBUF) => {
-    console.log('msg::', msg);
-    console.log('msgSTR::', msgSTR);
-    console.log('msgBUF::', msgBUF);
+  testClient.on('message', (msg, msgSTR, msgBUF) => {
+    console.log('STRING message', msgSTR);
   });
 
 

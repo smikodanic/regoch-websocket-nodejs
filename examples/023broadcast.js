@@ -34,7 +34,7 @@ const main = async () => {
 
 
   console.log('message broadcasted');
-  testClient.broadcast('Message to all client except the sender');
+  testClient.broadcast('Message to all clients except the sender');
 };
 
 

@@ -197,6 +197,8 @@ class Client13jsonRWS extends DataParser {
         handshake(res.headers, this.wsKey, this.wcOpts.subprotocols);
         this.socketID = await this.infoSocketId();
         this.eventEmitter.emit('connected');
+        console.log(`socketID: ${this.socketID}`.cliBoja('blue'));
+        this.onMessage(false, true); // emits the message to eventEmitter
       } catch (err) {
         socket.emit('error', err);
       }
@@ -206,20 +208,25 @@ class Client13jsonRWS extends DataParser {
 
   /**
    * Receive the message event and push it to msgStream.
-   * @param {Function} - callback function
+   * @param {Function} cb - callback function
+   * @param {boolean} emit - to emit the message into the eventEmitter
    * @returns {void}
    */
-  onMessage(cb) {
+  onMessage(cb, emit) {
     this.socket.on('data', msgBUF => {
+
       try {
         const msgSTR = this.incoming(msgBUF); // convert buffer to string
 
+        let msg;
         if (/OPCODE 0x/.test(msgSTR)) {
           this.opcodes(msgSTR);
         } else {
-          const msg = jsonRWS.incoming(msgSTR); // convert string to object
-          if(!!cb) { cb(msg, msgSTR, msgBUF); }
+          msg = jsonRWS.incoming(msgSTR); // convert string to object
         }
+
+        if(!!cb) { cb(msg, msgSTR, msgBUF); }
+        if (!!emit) { this.eventEmitter.emit('message', msg, msgSTR, msgBUF); }
 
       } catch (err) {
         this.socket.emit('error', err);
@@ -234,8 +241,8 @@ class Client13jsonRWS extends DataParser {
    */
   opcodes(msgSTR) {
     if (msgSTR === 'OPCODE 0x8 CLOSE') {
-      console.log('Opcode 0x8: Server closed wthe websocket connection'.cliBoja('yellow'));
-      this.eventEmitter.emit('closedBYserver');
+      console.log('Opcode 0x8: Server closed the websocket connection'.cliBoja('yellow'));
+      this.eventEmitter.emit('closed-by-server');
     } else if (msgSTR === 'OPCODE 0x9 PING') {
       if (this.wcOpts.debug) { console.log('Opcode 0x9: PING received'.cliBoja('yellow')); }
       this.eventEmitter.emit('ping');
@@ -287,7 +294,7 @@ class Client13jsonRWS extends DataParser {
     return new Promise(async (resolve, reject) => {
       this.onMessage(msgObj => {
         if (msgObj.cmd === cmd) { resolve(msgObj); }
-      });
+      }, false);
       await helper.sleep(this.wcOpts.timeout);
       reject(new Error(`No answer for the question: ${cmd}`));
     });
@@ -300,6 +307,7 @@ class Client13jsonRWS extends DataParser {
   async infoSocketId() {
     const answer = await this.question('info/socket/id');
     this.socketID = +answer.payload;
+    console.log();
     return this.socketID;
   }
 
@@ -436,7 +444,7 @@ class Client13jsonRWS extends DataParser {
 
   /**
    * Wrapper around the eventEmitter
-   * @param {string} eventName - event name: 'connected', 'closedBYserver', 'ping', 'pong'
+   * @param {string} eventName - event name: 'connected', 'closed-by-server', 'ping', 'pong', 'message'
    * @param {Function} listener - callback function
    */
   on(eventName, listener) {
