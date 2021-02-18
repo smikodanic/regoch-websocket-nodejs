@@ -111,7 +111,7 @@ class Client13jsonRWS extends DataParser {
     if (this.attempt <= attempts) {
       await helper.sleep(delay);
       this.connect();
-      console.log(`Reconnect attempt #${this.attempt} of ${attempts} in ${delay}ms`.cliBoja('yellow'));
+      console.log(`Reconnect attempt #${this.attempt} of ${attempts} in ${delay}ms`.cliBoja('blue', 'bright'));
       this.attempt++;
     }
   }
@@ -157,20 +157,16 @@ class Client13jsonRWS extends DataParser {
     this.clientRequest.on('socket', socket => {
       socket.on('connect', () => {
         console.log(`WS Connection opened`.cliBoja('blue'));
+        this.attempt = 1;
       });
 
 
       // hadError determine if the socket is closed due to emitted 'error' event
-      socket.on('close', async (hadError) => {
+      socket.on('close', hadError => {
+        console.log(`WS Connection closed`.cliBoja('blue'));
         delete this.clientRequest;
         delete this.socket;
         delete this.socketID;
-        if (hadError) {
-          console.log('\nWS Connection closed due to internal error'.cliBoja('blue'));
-        } else {
-          console.log('\nWS Connection closed'.cliBoja('blue'));
-          this.attempt = 1; // socket is probably closed because server is down, so reconnecting should start from the 1.st attempt
-        }
         this.reconnect();
       });
 
