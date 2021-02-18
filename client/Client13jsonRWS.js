@@ -202,7 +202,7 @@ class Client13jsonRWS extends DataParser {
         this.socketID = res.headers['sec-websocket-socketid'];
         console.log(`socketID: ${this.socketID}`.cliBoja('blue'));
         this.eventEmitter.emit('connected');
-        this.onMessage(false, true); // emits the message to eventEmitter
+        this.onMessage(false, true); // emits the messages to eventEmitter
       } catch (err) {
         socket.emit('error', err);
       }
@@ -213,10 +213,10 @@ class Client13jsonRWS extends DataParser {
   /**
    * Receive the message event and push it to msgStream.
    * @param {Function} cb - callback function
-   * @param {boolean} emit - to emit the message into the eventEmitter
+   * @param {boolean} toEmit - to emit the message into the eventEmitter
    * @returns {void}
    */
-  onMessage(cb, emit) {
+  onMessage(cb, toEmit) {
     this.socket.on('data', msgBUF => {
 
       try {
@@ -230,7 +230,9 @@ class Client13jsonRWS extends DataParser {
         }
 
         if(!!cb) { cb(msg, msgSTR, msgBUF); }
-        if (!!emit) { this.eventEmitter.emit('message', msg, msgSTR, msgBUF); }
+
+        if (msg.cmd === 'route') { this.eventEmitter.emit('route', msg, msgSTR, msgBUF); }
+        else { this.eventEmitter.emit('message', msg, msgSTR, msgBUF); }
 
       } catch (err) {
         this.socket.emit('error', err);
@@ -527,13 +529,20 @@ class Client13jsonRWS extends DataParser {
 
   /**
    * Wrapper around the eventEmitter
-   * @param {string} eventName - event name: 'connected', 'closed-by-server', 'ping', 'pong', 'message'
+   * @param {string} eventName - event name: 'connected', 'closed-by-server', 'ping', 'pong', 'message', 'route'
    * @param {Function} listener - callback function
    */
   on(eventName, listener) {
-    const ee = this.eventEmitter.on(eventName, listener);
-    console.log(`Listeners of "${eventName}": ${this.eventEmitter.listenerCount('connected')}`.cliBoja('yellow'));
-    return ee;
+    return this.eventEmitter.on(eventName, listener);
+  }
+
+  /**
+   * Wrapper around the eventEmitter
+   * @param {string} eventName - event name: 'connected', 'closed-by-server', 'ping', 'pong', 'message', 'route'
+   * @param {Function} listener - callback function
+   */
+  once(eventName, listener) {
+    return this.eventEmitter.once(eventName, listener);
   }
 
 
