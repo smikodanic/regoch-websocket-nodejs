@@ -231,8 +231,10 @@ class Client13jsonRWS extends DataParser {
 
         if(!!cb) { cb(msg, msgSTR, msgBUF); }
 
-        if (msg.cmd === 'route') { this.eventEmitter.emit('route', msg, msgSTR, msgBUF); }
-        else { this.eventEmitter.emit('message', msg, msgSTR, msgBUF); }
+        if (!!toEmit) {
+          if (msg.cmd === 'route') { this.eventEmitter.emit('route', msg, msgSTR, msgBUF); }
+          else { this.eventEmitter.emit('message', msg, msgSTR, msgBUF); }
+        }
 
       } catch (err) {
         this.socket.emit('error', err);
