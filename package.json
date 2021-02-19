@@ -1,6 +1,6 @@
 {
   "name": "regoch-websocket-nodejs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "title": "Regoch Websocket Client for nodeJS",
   "description": "Websocket Client for nodeJS which works best with the Regoch Websocket Server.",
   "author": "Sasa Mikodanic <smikodanic@gmail.com>",
