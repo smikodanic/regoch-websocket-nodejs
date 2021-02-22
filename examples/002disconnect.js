@@ -17,8 +17,8 @@ const main = async () => {
   const wcOpts = {
     wsURL: 'ws://localhost:3211?authkey=TRTmrt',
     timeout: 3*1000, // wait for answer
-    recconectAttempts: 0, // try to reconnect n times
-    recconectDelay: 3000, // delay between reconnections
+    reconnectAttempts: 0, // try to reconnect n times
+    reconnectDelay: 3000, // delay between reconnections
     subprotocols: ['jsonRWS'],
     debug: false
   };

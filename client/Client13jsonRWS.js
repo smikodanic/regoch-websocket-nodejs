@@ -16,7 +16,7 @@ new StringExt();
 class Client13jsonRWS extends DataParser {
 
   /**
-   * @param {{wsURL:string, timeout:number, recconectAttempts:number, reconnectDelay:number, subprotocols:string[], debug:boolean}} wcOpts - websocket client options
+   * @param {{wsURL:string, timeout:number, reconnectAttempts:number, reconnectDelay:number, subprotocols:string[], debug:boolean}} wcOpts - websocket client options
    */
   constructor(wcOpts) {
     super(wcOpts.debug);
@@ -105,8 +105,8 @@ class Client13jsonRWS extends DataParser {
    * This method is fired on every 'close' socket's event.
    */
   async reconnect() {
-    const attempts = this.wcOpts.recconectAttempts;
-    const delay = this.wcOpts.recconectDelay;
+    const attempts = this.wcOpts.reconnectAttempts;
+    const delay = this.wcOpts.reconnectDelay;
 
     if (this.attempt <= attempts) {
       await helper.sleep(delay);
@@ -176,7 +176,7 @@ class Client13jsonRWS extends DataParser {
         if (/ECONNREFUSED/.test(err.stack)) {
           errMsg = `No connection to server ${this.wcOpts.wsURL}`;
         } else {
-          this.wcOpts.recconectAttempts = 0; // do not reconnect
+          this.wcOpts.reconnectAttempts = 0; // do not reconnect
           this.disconnect();
         }
         console.log(errMsg.cliBoja('red'));

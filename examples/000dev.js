@@ -67,8 +67,8 @@ class TestClient extends Client13jsonRWS {
 const wcOpts = {
   wsURL: 'ws://localhost:3211?authkey=TRTmrt',
   timeout: 3*1000, // wait 3 secs for answer
-  recconectAttempts: 5, // try to reconnect 5 times
-  recconectDelay: 6000, // delay between reconnections is 6 seconds
+  reconnectAttempts: 5, // try to reconnect 5 times
+  reconnectDelay: 6000, // delay between reconnections is 6 seconds
   subprotocols: ['jsonRWS'],
   debug: false
 };
