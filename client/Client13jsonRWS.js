@@ -9,7 +9,6 @@ const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const package_json = require('../package.json');
 const { jsonRWS, handshake, DataParser, helper, StringExt, Router } = require('./lib');
-// const DataParser = require('../../regoch-websocket-server/server/lib/websocket13/DataParser');
 new StringExt();
 
 
@@ -32,7 +31,7 @@ class Client13jsonRWS extends DataParser {
     this.clientRequest; // client HTTP request https://nodejs.org/api/http.html#http_class_http_clientrequest
     this.onProcessEvents();
 
-    this.router = new Router(this.wcOpts.debug);
+    this.router = new Router({debug: this.wcOpts.debug});
   }
 
 
@@ -97,6 +96,7 @@ class Client13jsonRWS extends DataParser {
   disconnect() {
     const closeBUF = this.ctrlClose(1);
     this.socketWrite(closeBUF);
+    this.blockReconnect();
   }
 
 
@@ -114,6 +114,14 @@ class Client13jsonRWS extends DataParser {
       console.log(`Reconnect attempt #${this.attempt} of ${attempts} in ${delay}ms`.cliBoja('blue', 'bright'));
       this.attempt++;
     }
+  }
+
+
+  /**
+   * Block reconnect usually after disconnect() method is used.
+   */
+  blockReconnect() {
+    this.attempt = this.wcOpts.reconnectAttempts + 1;
   }
 
 
