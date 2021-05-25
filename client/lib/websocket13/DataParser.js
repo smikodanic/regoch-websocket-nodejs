@@ -216,13 +216,15 @@ class DataParser {
       console.log(dbg + ` with ${msglen} bytes`);
       console.log('msgSTR::', msgSTR);
       console.log();
-      console.log('byte_1::', this.toBinStr(byte_1), this.toHexStr(byte_1));
-      console.log('byte_2::', this.toBinStr(byte_2), this.toHexStr(byte_2));
+      console.log('msglen (plen)::', msglen);
+      console.log('plen_byte2::', plen_byte2);
+      console.log(`byte_1::: ${this.toBinStr(byte_1)} ---> fin:${fin} rsv1:${rsv1} rsv2:${rsv2} rsv3:${rsv3} opcode:0x${this.toHexStr(opcode)}`);
+      console.log(`byte_2::: ${this.toBinStr(byte_2)} ---> mask:${mask} plen_byte2:0b${this.toBinStr(plen_byte2)} -- 0x${this.toHexStr(plen_byte2)} -- ${plen_byte2}`);
       if (!!byte_34) console.log('byte_34::', this.toBinStr(byte_34, 2), this.toHexStr(byte_34, 2)); // msglen >= 126 && msglen <= 0xFFFF
       if (!!byte_3_10) console.log('byte_3_10::', this.toBinStr(byte_3_10, 8)); // msglen > 0xFFFF && msglen <= 0xFFFFFFFFFFFFFFFF
       console.log('payload_buff::', payload_buff.length, payload_buff);
       if (mask === 1) console.log('payload_buff_masked::', payload_buff_masked.length , payload_buff_masked);
-      console.log('frame_buff::', frame_buff.length, frame_buff);
+      console.log('frame_buff (msgBUF)::', frame_buff.length, frame_buff.toString('hex').match(/../g).join(' '));
       console.log('--------------------- DataParser.outgoing END ------------------------\n\n');
     }
 

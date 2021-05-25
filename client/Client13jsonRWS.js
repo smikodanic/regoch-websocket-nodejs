@@ -93,10 +93,10 @@ class Client13jsonRWS extends DataParser {
    * Disconnect from the websocket server.
    * @returns {void}
    */
-  disconnect() {
-    const closeBUF = this.ctrlClose(1);
-    this.socketWrite(closeBUF);
+  async disconnect() {
     this.blockReconnect();
+    const closeBUF = this.ctrlClose(1);
+    await this.socketWrite(closeBUF);
   }
 
 
@@ -278,12 +278,12 @@ class Client13jsonRWS extends DataParser {
     if (!!n) {
       for (let i = 1; i <= n; i++) {
         const pingBUF = this.ctrlPing();
-        this.socketWrite(pingBUF);
+        await this.socketWrite(pingBUF);
         await helper.sleep(ms);
       }
     } else {
       const pingBUF = this.ctrlPing();
-      this.socketWrite(pingBUF);
+      await this.socketWrite(pingBUF);
       await helper.sleep(ms);
       this.ping(ms);
     }
@@ -361,7 +361,7 @@ class Client13jsonRWS extends DataParser {
    * Send message to the websocket server after the message is processed by subprotocol and DataParser.
    * @returns {void}
    */
-  carryOut(to, cmd, payload) {
+  async carryOut(to, cmd, payload) {
     const id = helper.generateID(); // the message ID
     const from = +this.socketID; // the sender ID
     if (!to) { to = 0; } // server ID is 0
@@ -371,7 +371,8 @@ class Client13jsonRWS extends DataParser {
     // the message must be defined and client must be connected to the server
     if (!!msg) {
       const msgBUF = this.outgoing(msg, 1);
-      this.socketWrite(msgBUF);
+      await new Promise(r => setTimeout(r, 100));
+      await this.socketWrite(msgBUF);
     } else {
       throw new Error('The message is not defined.');
     }
@@ -384,9 +385,11 @@ class Client13jsonRWS extends DataParser {
    * @param {Buffer} msgBUF - message to server
    * @returns {void}
    */
-  socketWrite(msgBUF) {
+  async socketWrite(msgBUF) {
     if (!!this.socket && this.socket.writable && this.socket.readyState === 'open') {
-      this.socket.write(msgBUF);
+      await new Promise(resolve => {
+        this.socket.write(msgBUF, () => { resolve(); });
+      });
     } else {
       this.debugger('Socket is not writeble or doesn\'t exist');
     }
@@ -399,10 +402,10 @@ class Client13jsonRWS extends DataParser {
    * @param {any} msg - message sent to the client
    * @returns {void}
    */
-  sendOne(to, msg) {
+  async sendOne(to, msg) {
     const cmd = 'socket/sendone';
     const payload = msg;
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
 
@@ -412,10 +415,10 @@ class Client13jsonRWS extends DataParser {
    * @param {any} msg - message sent to the clients
    * @returns {void}
    */
-  send(to, msg) {
+  async send(to, msg) {
     const cmd = 'socket/send';
     const payload = msg;
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
 
@@ -424,11 +427,11 @@ class Client13jsonRWS extends DataParser {
    * @param {any} msg - message sent to the clients
    * @returns {void}
    */
-  broadcast(msg) {
+  async broadcast(msg) {
     const to = 0;
     const cmd = 'socket/broadcast';
     const payload = msg;
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
   /**
@@ -436,11 +439,11 @@ class Client13jsonRWS extends DataParser {
    * @param {any} msg - message sent to the clients
    * @returns {void}
    */
-  sendAll(msg) {
+  async sendAll(msg) {
     const to = 0;
     const cmd = 'socket/sendall';
     const payload = msg;
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
 
@@ -451,11 +454,11 @@ class Client13jsonRWS extends DataParser {
    * @param {string} roomName
    * @returns {void}
    */
-  roomEnter(roomName) {
+  async roomEnter(roomName) {
     const to = 0;
     const cmd = 'room/enter';
     const payload = roomName;
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
   /**
@@ -463,22 +466,22 @@ class Client13jsonRWS extends DataParser {
    * @param {string} roomName
    * @returns {void}
    */
-  roomExit(roomName) {
+  async roomExit(roomName) {
     const to = 0;
     const cmd = 'room/exit';
     const payload = roomName;
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
   /**
    * Unsubscribe from all rooms.
    * @returns {void}
    */
-  roomExitAll() {
+  async roomExitAll() {
     const to = 0;
     const cmd = 'room/exitall';
     const payload = undefined;
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
   /**
@@ -487,11 +490,11 @@ class Client13jsonRWS extends DataParser {
    * @param {any} msg
    * @returns {void}
    */
-  roomSend(roomName, msg) {
+  async roomSend(roomName, msg) {
     const to = roomName;
     const cmd = 'room/send';
     const payload = msg;
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
 
@@ -502,11 +505,11 @@ class Client13jsonRWS extends DataParser {
    * @param {string} nickname - nick name
    * @returns {void}
    */
-  setNick(nickname) {
+  async setNick(nickname) {
     const to = 0;
     const cmd = 'socket/nick';
     const payload = nickname;
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
 
@@ -516,11 +519,11 @@ class Client13jsonRWS extends DataParser {
    * @param {any} body - body
    * @returns {void}
    */
-  route(uri, body) {
+  async route(uri, body) {
     const to = 0;
     const cmd = 'route';
     const payload = {uri, body};
-    this.carryOut(to, cmd, payload);
+    await this.carryOut(to, cmd, payload);
   }
 
 
