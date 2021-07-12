@@ -51,8 +51,12 @@ npm run dev
 - **setNick(nickname:string)** - set the client's nickname
 - **route(uri:string, body?:any)** - send route to the server, for example: *{uri: '/login', body: {username: 'john', password: 'trtmrt'}}*
 
-- **on(eventName:string, listener:Function)** - listen events: *'connected', 'closed-by-server', 'ping', 'pong', 'message', 'route'*
-- **once(eventName:string, listener:Function)** - listen events: *'connected', 'closed-by-server', 'ping', 'pong', 'message', 'route'* only once
+- **on(eventName:string, listener:Function)** - listen events: *'connected', 'closed-by-server', 'ping', 'pong', 'message', 'message-error', 'route'*
+- **once(eventName:string, listener:Function)** - listen events: *'connected', 'closed-by-server', 'ping', 'pong', 'message', 'message-error', 'route'* only once
+
+
+#### Notice
+The 'message-error' event is error in the recived message. In most cases this error is generated when mesag doesn't satisfy jsonRWS subprotocol rules.
 
 
 ## How to use

@@ -245,7 +245,7 @@ class Client13jsonRWS extends DataParser {
         }
 
       } catch (err) {
-        this.socket.emit('error', err);
+        this.eventEmitter.emit('message-error', err);
       }
     });
   }
@@ -542,7 +542,7 @@ class Client13jsonRWS extends DataParser {
 
   /**
    * Wrapper around the eventEmitter
-   * @param {string} eventName - event name: 'connected', 'closed-by-server', 'ping', 'pong', 'message', 'route'
+   * @param {string} eventName - event name: 'connected', 'closed-by-server', 'ping', 'pong', 'message', 'message-error',  'route'
    * @param {Function} listener - callback function
    */
   on(eventName, listener) {
@@ -551,7 +551,7 @@ class Client13jsonRWS extends DataParser {
 
   /**
    * Wrapper around the eventEmitter
-   * @param {string} eventName - event name: 'connected', 'closed-by-server', 'ping', 'pong', 'message', 'route'
+   * @param {string} eventName - event name: 'connected', 'closed-by-server', 'ping', 'pong', 'message', 'message-error' (error in the received message, usually jsonRWS errors),  'route'
    * @param {Function} listener - callback function
    */
   once(eventName, listener) {

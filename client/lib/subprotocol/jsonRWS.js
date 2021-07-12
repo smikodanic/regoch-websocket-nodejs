@@ -34,7 +34,7 @@ class JsonRWS {
     }
 
     if (tf) { return msg; }
-    else { throw new Error(`Incoming message "${msgSTR}" doesn\'t have valid "jsonRWS" subprotocol format.`); }
+    else { throw new Error(`Incoming message doesn\'t have valid "jsonRWS" subprotocol format. msg:: "${msgSTR}" `); }
   }
 
 
@@ -55,7 +55,7 @@ class JsonRWS {
       const msgSTR = JSON.stringify(msg);
       return msgSTR;
     } else {
-      throw new Error(`Outgoing message ${JSON.stringify(msg)} doesn\'t have valid "jsonRWS" subprotocol format.`);
+      throw new Error(`Outgoing message doesn\'t have valid "jsonRWS" subprotocol format. msg:: ${JSON.stringify(msg)}`);
     }
   }
 
