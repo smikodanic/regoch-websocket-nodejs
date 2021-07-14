@@ -8,14 +8,14 @@ const urlNode = require('url');
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const package_json = require('../package.json');
-const { jsonRWS, handshake, DataParser, helper, StringExt, Router } = require('./lib');
+const { jsonRWS, raw, handshake, DataParser, helper, StringExt, Router } = require('./lib');
 new StringExt();
 
 
 class Client13jsonRWS extends DataParser {
 
   /**
-   * @param {{wsURL:string, timeout:number, reconnectAttempts:number, reconnectDelay:number, subprotocols:string[], debug:boolean}} wcOpts - websocket client options
+   * @param {{wsURL:string, questionTimeout:number, reconnectAttempts:number, reconnectDelay:number, subprotocols:string[], debug:boolean}} wcOpts - websocket client options
    */
   constructor(wcOpts) {
     super(wcOpts.debug);
@@ -23,6 +23,7 @@ class Client13jsonRWS extends DataParser {
     this.wcOpts = wcOpts; // websocket client options
     this.socket; // TCP Socket https://nodejs.org/api/net.html#net_class_net_socket
     this.socketID; // socket ID number, for example: 210214082949459100
+    this.resHeaders; // onUpgrade response headers
     this.attempt = 1; // reconnect attempt counter
     this.eventEmitter = new EventEmitter();
     this.eventEmitter.setMaxListeners(8);
@@ -73,8 +74,10 @@ class Client13jsonRWS extends DataParser {
         'User-Agent': `@regoch/client-nodejs/${package_json.version}`
       }
     };
-    this.clientRequest = http.request(requestOpts).on('error', err => {});
+    this.clientRequest = http.request(requestOpts);
+    this.clientRequest.on('error', err => { console.log(err); });
     this.clientRequest.end();
+
 
     // socket events
     this.onEvents();
@@ -204,11 +207,24 @@ class Client13jsonRWS extends DataParser {
   onUpgrade() {
     this.clientRequest.on('upgrade', async (res, socket, firstDataChunk) => {
       // console.log('isSame:::', res.socket === socket); // true
+
+      this.resHeaders = res.headers;
+      /*res.headers:: {
+          connection: 'Upgrade',
+          upgrade: 'Websocket',
+          'sec-websocket-accept': 'ZPDSZnqDz3a54R5E3LM8k9xMEkw=',
+          'sec-websocket-version': '13',
+          'sec-websocket-protocol': 'jsonRWS',
+          'sec-websocket-server-version': '1.1.9',
+          'sec-websocket-socketid': '210714060202279680',
+          'sec-websocket-timeout': '604800000'
+        }*/
+
       try {
         this.socket = socket;
-        handshake(res.headers, this.wsKey, this.wcOpts.subprotocols);
-        this.socketID = res.headers['sec-websocket-socketid'];
-        console.log(`socketID: ${this.socketID}`.cliBoja('blue'));
+        handshake(this.resHeaders, this.wsKey, this.wcOpts.subprotocols);
+        this.socketID = this.resHeaders['sec-websocket-socketid'];
+        console.log(`socketID:${this.socketID}, subprotocol(handshaked):"${this.resHeaders['sec-websocket-protocol']}", timeout(inactivity):${this.resHeaders['sec-websocket-timeout']}ms`.cliBoja('blue'));
         this.eventEmitter.emit('connected');
         this.onMessage(false, true); // emits the messages to eventEmitter
       } catch (err) {
@@ -225,22 +241,54 @@ class Client13jsonRWS extends DataParser {
    * @returns {void}
    */
   onMessage(cb, toEmit) {
-    this.socket.on('data', msgBUF => {
+    const subprotocol = this.resHeaders['sec-websocket-protocol']; // jsonRWS || raw
 
+    this.socket.on('data', msgBUF => {
       try {
         const msgSTR = this.incoming(msgBUF); // convert buffer to string
+        // console.log('data-chunk::', msgSTR);
 
         let msg;
         if (/OPCODE 0x/.test(msgSTR)) {
           this.opcodes(msgSTR);
         } else {
-          msg = jsonRWS.incoming(msgSTR); // convert string to object
+          if (subprotocol === 'jsonRWS') { msg = jsonRWS.incoming(msgSTR); } // convert string to object
+          else if (subprotocol === 'raw') { msg = raw.incoming(msgSTR); } // no conversion, return string
+          else { msg = raw.incoming(msgSTR); }
+
+          // msg = {
+          //   id: 210712154610379500,
+          //   from: 210712154608259550,
+          //   to: 210712154420406820,
+          //   cmd: 'route',
+          //   payload: {
+          //     uri: '/start',
+          //     body: {
+          //       user_id: '5eec761a790f891791d48fa8',
+          //       robot_id: '5ed10185256ce502b869e2a6',
+          //       task_id: '60ebf64717c14b29e684df33',
+          //       input_file_id: '60ebf64a5698ad744aed4d52',
+          //       cron: false,
+          //       task_title: 'uniapi',
+          //       run_dir_part: 'voovuu/cli/uniapi__60ebf64717c14b29e684df33',
+          //       files: [
+          //         {
+          //           _id: '60ebf6475698ad744aed4d4a',
+          //           name: 'main.js',
+          //           content: 'async (input, lib) => {console.log(\'TESST\');}'
+          //         }
+          //       ]
+          //     }
+          //   }
+          // };
+
         }
+
 
         if(!!cb) { cb(msg, msgSTR, msgBUF); }
 
         if (!!toEmit) {
-          if (msg.cmd === 'route') { this.eventEmitter.emit('route', msg, msgSTR, msgBUF); }
+          if (msg.cmd === 'route' && subprotocol === 'jsonRWS') { this.eventEmitter.emit('route', msg, msgSTR, msgBUF); }
           else { this.eventEmitter.emit('message', msg, msgSTR, msgBUF); }
         }
 
@@ -311,7 +359,7 @@ class Client13jsonRWS extends DataParser {
       this.onMessage(msgObj => {
         if (msgObj.cmd === cmd) { resolve(msgObj); }
       }, false);
-      await helper.sleep(this.wcOpts.timeout);
+      await helper.sleep(this.wcOpts.questionTimeout);
       reject(new Error(`No answer for the question: ${cmd}`));
     });
   }
