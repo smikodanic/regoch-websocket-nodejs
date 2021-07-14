@@ -108,6 +108,11 @@ c) The incoming message is converted from string to object.
 d) The outgoing message is converted from object to string.
 
 
+## TCPDUMP
+Use *tcpdump* command to debug the messages sent from the server to the client.
+For example ```sudo tcpdump -i any port 57190 -X -s0``` where 57190 is the client port i.e. **socket.localPort**
+
+
 ### Licence
 “Freely you received, freely you give”, Matthew 10:5-8
 

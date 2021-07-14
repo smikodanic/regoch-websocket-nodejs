@@ -23,8 +23,9 @@ class Client13jsonRWS extends DataParser {
     this.wcOpts = wcOpts; // websocket client options
     this.socket; // TCP Socket https://nodejs.org/api/net.html#net_class_net_socket
     this.socketID; // socket ID number, for example: 210214082949459100
-    this.resHeaders; // onUpgrade response headers
     this.attempt = 1; // reconnect attempt counter
+    this.resHeaders; // onUpgrade response headers
+    this.subprotocolLib;
     this.eventEmitter = new EventEmitter();
     this.eventEmitter.setMaxListeners(8);
 
@@ -224,7 +225,20 @@ class Client13jsonRWS extends DataParser {
         this.socket = socket;
         handshake(this.resHeaders, this.wsKey, this.wcOpts.subprotocols);
         this.socketID = this.resHeaders['sec-websocket-socketid'];
-        console.log(`socketID:${this.socketID}, subprotocol(handshaked):"${this.resHeaders['sec-websocket-protocol']}", timeout(inactivity):${this.resHeaders['sec-websocket-timeout']}ms`.cliBoja('blue'));
+
+        const subprotocol = this.resHeaders['sec-websocket-protocol']; // subprotocol supported by the server
+        if (subprotocol === 'raw') { this.subprotocolLib = raw; }
+        if (subprotocol === 'jsonRWS') { this.subprotocolLib = jsonRWS; }
+        else { this.subprotocolLib = raw; }
+
+        console.log(`
+        socketID: ${this.socketID},
+        subprotocol(handshaked): "${subprotocol}",
+        timeout(inactivity): ${this.resHeaders['sec-websocket-timeout']}ms,
+        client(IP:PORT): ${socket.localAddress}:${socket.localPort}
+        `.cliBoja('blue'));
+
+
         this.eventEmitter.emit('connected');
         this.onMessage(false, true); // emits the messages to eventEmitter
       } catch (err) {
@@ -242,48 +256,23 @@ class Client13jsonRWS extends DataParser {
    */
   onMessage(cb, toEmit) {
     const subprotocol = this.resHeaders['sec-websocket-protocol']; // jsonRWS || raw
+    const msgBUFarr = [];
 
-    this.socket.on('data', msgBUF => {
+    this.socket.on('data', msgBUFchunk => {
       try {
+        msgBUFarr.push(msgBUFchunk);
+        const msgBUF = Buffer.concat(msgBUFarr);
         const msgSTR = this.incoming(msgBUF); // convert buffer to string
-        // console.log('data-chunk::', msgSTR);
+
+        const delimiter_reg = new RegExp(this.subprotocolLib.delimiter);
+        if (!delimiter_reg.test(msgSTR)) { return; }
 
         let msg;
         if (/OPCODE 0x/.test(msgSTR)) {
           this.opcodes(msgSTR);
         } else {
-          if (subprotocol === 'jsonRWS') { msg = jsonRWS.incoming(msgSTR); } // convert string to object
-          else if (subprotocol === 'raw') { msg = raw.incoming(msgSTR); } // no conversion, return string
-          else { msg = raw.incoming(msgSTR); }
-
-          // msg = {
-          //   id: 210712154610379500,
-          //   from: 210712154608259550,
-          //   to: 210712154420406820,
-          //   cmd: 'route',
-          //   payload: {
-          //     uri: '/start',
-          //     body: {
-          //       user_id: '5eec761a790f891791d48fa8',
-          //       robot_id: '5ed10185256ce502b869e2a6',
-          //       task_id: '60ebf64717c14b29e684df33',
-          //       input_file_id: '60ebf64a5698ad744aed4d52',
-          //       cron: false,
-          //       task_title: 'uniapi',
-          //       run_dir_part: 'voovuu/cli/uniapi__60ebf64717c14b29e684df33',
-          //       files: [
-          //         {
-          //           _id: '60ebf6475698ad744aed4d4a',
-          //           name: 'main.js',
-          //           content: 'async (input, lib) => {console.log(\'TESST\');}'
-          //         }
-          //       ]
-          //     }
-          //   }
-          // };
-
+          msg = this.subprotocolLib.incoming(msgSTR);
         }
-
 
         if(!!cb) { cb(msg, msgSTR, msgBUF); }
 
@@ -296,6 +285,8 @@ class Client13jsonRWS extends DataParser {
         this.eventEmitter.emit('message-error', err);
       }
     });
+
+
   }
 
 

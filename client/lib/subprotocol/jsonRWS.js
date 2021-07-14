@@ -14,6 +14,10 @@
 
 class JsonRWS {
 
+  constructor() {
+    this.delimiter = '<<!END!>>';
+  }
+
   /*********** INCOMING MESSAGES ***********/
   /**
    * Execute the jsonRWS subprotocol for incoming messages. Filter and map incoming messages.
@@ -26,6 +30,7 @@ class JsonRWS {
     let tf = false;
     let msg;
     try {
+      msgSTR = msgSTR.replace(this.delimiter, '');
       msg = JSON.parse(msgSTR);
       const msgObjProperties = Object.keys(msg);
       tf = this._testFields(msgObjProperties);
@@ -34,7 +39,7 @@ class JsonRWS {
     }
 
     if (tf) { return msg; }
-    else { throw new Error(`Incoming message doesn\'t have valid "jsonRWS" subprotocol format. msg:: "${msgSTR}" `); }
+    else { throw new Error(`Incoming message doesn\'t have valid "jsonRWS" subprotocol format. msg:: "${msgSTR}"`); }
   }
 
 
@@ -52,7 +57,7 @@ class JsonRWS {
     const tf = this._testFields(msgObjProperties);
 
     if (tf) {
-      const msgSTR = JSON.stringify(msg);
+      const msgSTR = JSON.stringify(msg) + this.delimiter;
       return msgSTR;
     } else {
       throw new Error(`Outgoing message doesn\'t have valid "jsonRWS" subprotocol format. msg:: ${JSON.stringify(msg)}`);
