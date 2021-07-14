@@ -5,7 +5,7 @@
   "description": "Websocket Client for nodeJS which works best with the Regoch Websocket Server.",
   "author": "Sasa Mikodanic <smikodanic@gmail.com>",
   "homepage": "http://www.regoch.org/websocket-client-nodejs",
-  "license": "AGPL-3.0",
+  "license": "MIT",
   "keywords": [
     "websocket",
     "client",
