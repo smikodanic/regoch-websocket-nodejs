@@ -15,7 +15,7 @@ const main = async () => {
   // connect to websocket server
   const wcOpts = {
     wsURL: 'ws://localhost:8001?authkey=TRTmrt252',
-    timeout: 3*60*1000, // wait 3secs for answer
+    questionTimeout: 3*60*1000, // wait 3secs for answer
     reconnectAttempts: 5, // try to reconnect 5 times
     reconnectDelay: 3000, // delay between reconnections is 3 seconds
     subprotocols: ['jsonRWS'],
