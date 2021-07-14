@@ -256,13 +256,13 @@ class Client13jsonRWS extends DataParser {
    */
   onMessage(cb, toEmit) {
     const subprotocol = this.resHeaders['sec-websocket-protocol']; // jsonRWS || raw
-    const msgBUFarr = [];
+    let msgBUFarr = [];
 
     this.socket.on('data', msgBUFchunk => {
       try {
         msgBUFarr.push(msgBUFchunk);
-        const msgBUF = Buffer.concat(msgBUFarr);
-        const msgSTR = this.incoming(msgBUF); // convert buffer to string
+        let msgBUF = Buffer.concat(msgBUFarr);
+        let msgSTR = this.incoming(msgBUF); // convert buffer to string
 
         const delimiter_reg = new RegExp(this.subprotocolLib.delimiter);
         if (!delimiter_reg.test(msgSTR)) { return; }
@@ -280,6 +280,12 @@ class Client13jsonRWS extends DataParser {
           if (msg.cmd === 'route' && subprotocol === 'jsonRWS') { this.eventEmitter.emit('route', msg, msgSTR, msgBUF); }
           else { this.eventEmitter.emit('message', msg, msgSTR, msgBUF); }
         }
+
+        // reset
+        msgBUFarr = [];
+        msgBUF = undefined;
+        msgSTR = '';
+        msg = null;
 
       } catch (err) {
         this.eventEmitter.emit('message-error', err);
